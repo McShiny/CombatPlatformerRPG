@@ -1194,7 +1194,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e9fa066faa53f7c4489e90bc0ff6b125, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rigidbody2: {fileID: 1441805979}
+  playerBody: {fileID: 1441805979}
+  speed: 5
 --- !u!50 &1441805979
 Rigidbody2D:
   serializedVersion: 4
@@ -1221,7 +1222,7 @@ Rigidbody2D:
   m_Interpolate: 0
   m_SleepingMode: 1
   m_CollisionDetection: 0
-  m_Constraints: 0
+  m_Constraints: 4
 --- !u!70 &1441805980
 CapsuleCollider2D:
   m_ObjectHideFlags: 0
