@@ -44,7 +44,7 @@ public class Player : MonoBehaviour
     private bool IsGrounded()
     {
         float extraHeight = 0.01f;
-        RaycastHit2D raycastHit = Physics2D.Raycast(capsuleCollider2d.bounds.center, Vector2.down, capsuleCollider2d.bounds.extents.y + extraHeight, platformLayerMask);
+        RaycastHit2D raycastHit = Physics2D.CapsuleCast(capsuleCollider2d.bounds.center, capsuleCollider2d.bounds.size, capsuleCollider2d.direction, 0f, Vector2.down, extraHeight, platformLayerMask);
         return raycastHit.collider != null;
     }
         
