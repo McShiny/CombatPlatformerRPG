@@ -10,13 +10,21 @@ public class Player : MonoBehaviour
     [SerializeField] private CapsuleCollider2D capsuleCollider2d;
     [SerializeField] private LayerMask platformLayerMask;
 
-    private float moveSpeed = 5f;
+    private float moveSpeed = 7f;
     private float moveDirection = 0f;
+    private float lastMoveDirection = 0f;
+    private bool isPlayerWalk = false;
     
     private float jumpVelocity = 30f;
-    private bool playerJumpQued = false;
     private float jumpDownTime = 0f;
     private float jumpDownTimeMax = 0.5f;
+    private bool playerJumpQued = false;
+
+    private float dashVelocity = 25f;
+    private float dashVelocityMax = 25f;
+    private float dashDecrease = 50f;
+    private float dashTime = 0f;
+    private bool playerDashQued = false;
 
     private void Start()
     {
@@ -26,7 +34,9 @@ public class Player : MonoBehaviour
     {
 
         moveDirection = PlayerMoveDirectionNormalized();
+        isPlayerWalk = PlayerWalk();
         playerJumpQued = PlayerJumpQued();
+        playerDashQued = dashQued();
 
         if (jumpDownTime < jumpDownTimeMax) {
             jumpDownTime += PlayerJumpStrength();
@@ -35,8 +45,11 @@ public class Player : MonoBehaviour
     }
 
     private void FixedUpdate() {
+        if (!playerDashQued) { 
         PlayerMove();
+    }
         PlayerJump();
+        playerDash();
     }
 
     private float PlayerMoveDirectionNormalized() {
@@ -44,23 +57,37 @@ public class Player : MonoBehaviour
 
         if (Input.GetKey(KeyCode.D)) {
             inputVector.x += 1;
+            lastMoveDirection = 1;
         }
         
         if (Input.GetKey(KeyCode.A)) {
             inputVector.x -= 1;
+            lastMoveDirection = -1;
         }
 
         return inputVector.x;
     }
 
+    private bool PlayerWalk() {
+        if (Input.GetKey(KeyCode.LeftShift)) {
+            return true;
+        }
+        return false;
+    }
+
     private void PlayerMove() {
-        playerBody.linearVelocity = new Vector2(moveDirection * moveSpeed, playerBody.linearVelocityY);
+        if (isPlayerWalk) {
+            float walkModifier = 0.5f;
+            playerBody.linearVelocity = new Vector2(moveDirection * moveSpeed * walkModifier, playerBody.linearVelocityY);
+        } else {
+            playerBody.linearVelocity = new Vector2(moveDirection * moveSpeed, playerBody.linearVelocityY);
+        }    
     }
 
     private void PlayerJump() {
         if (playerJumpQued) {
-
-            playerBody.linearVelocity = new Vector2(playerBody.linearVelocityX, jumpVelocity * (jumpDownTime * 2));
+            float jumpModifier = 2;
+            playerBody.linearVelocity = new Vector2(playerBody.linearVelocityX, jumpVelocity * (jumpDownTime * jumpModifier));
 
             playerJumpQued = false;
             jumpDownTime = 0f;
@@ -87,6 +114,29 @@ public class Player : MonoBehaviour
         }
     }
 
+    private bool dashQued() {
+        if (Input.GetKeyDown(KeyCode.W)) {
+            return true;
+        }
+        else if (playerDashQued) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private void playerDash() {
+        if (playerDashQued) {
+            playerBody.linearVelocity = new Vector2(lastMoveDirection * dashVelocity, playerBody.linearVelocityY);
+            dashVelocity -= dashTime * dashDecrease;
+            dashTime += Time.deltaTime;
+            if (dashVelocity <= moveSpeed) {
+                playerDashQued = false;
+                dashVelocity = dashVelocityMax;
+                dashTime = 0f;
+            }  
+        }
+    }
     private bool IsGrounded()
     {
         float extraHeight = 0.05f;
