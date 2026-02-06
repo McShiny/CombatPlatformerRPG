@@ -15,15 +15,17 @@ public class Player : MonoBehaviour
     private float lastMoveDirection = 0f;
     private bool isPlayerWalk = false;
     
-    private float jumpVelocity = 30f;
+    private float jumpVelocity = 40f;
     private float jumpDownTime = 0f;
-    private float jumpDownTimeMax = 0.5f;
+    private float jumpDownTimeMax = 0.4f;
     private bool playerJumpQued = false;
 
     private float dashVelocity = 25f;
     private float dashVelocityMax = 25f;
     private float dashDecrease = 50f;
     private float dashTime = 0f;
+    private float dashCooldown = 3f;
+    private bool isDashAvailable = true;
     private bool playerDashQued = false;
 
     private void Start()
@@ -47,9 +49,20 @@ public class Player : MonoBehaviour
     private void FixedUpdate() {
         if (!playerDashQued) { 
         PlayerMove();
-    }
+        }
         PlayerJump();
+    if (isDashAvailable) {
         playerDash();
+        }
+
+    if (!isDashAvailable) {
+            if (dashCooldown <= 0) {
+                isDashAvailable = true;
+                dashCooldown = 3f;
+            }
+
+            dashCooldown -= Time.deltaTime;
+        }
     }
 
     private float PlayerMoveDirectionNormalized() {
@@ -134,6 +147,7 @@ public class Player : MonoBehaviour
                 playerDashQued = false;
                 dashVelocity = dashVelocityMax;
                 dashTime = 0f;
+                isDashAvailable = false;
             }  
         }
     }
