@@ -7,7 +7,8 @@ public class Player : MonoBehaviour
 {
 
     [SerializeField] private Rigidbody2D playerBody;
-    [SerializeField] private CapsuleCollider2D capsuleCollider2d;
+    [SerializeField] private CapsuleCollider2D playerCapsuleCollider;
+    [SerializeField] private CapsuleCollider2D floorCapsuleCollider;
     [SerializeField] private LayerMask platformLayerMask;
 
     private float moveSpeed = 7f;
@@ -17,7 +18,7 @@ public class Player : MonoBehaviour
     
     private float jumpVelocity = 40f;
     private float jumpDownTime = 0f;
-    private float jumpDownTimeMax = 0.4f;
+    private float jumpDownTimeMax = 0.3f;
     private bool playerJumpQued = false;
 
     private float dashVelocity = 25f;
@@ -27,6 +28,8 @@ public class Player : MonoBehaviour
     private float dashCooldown = 3f;
     private bool isDashAvailable = true;
     private bool playerDashQued = false;
+
+    private float slideSpeed = 3f;
 
     private void Start()
     {
@@ -47,10 +50,18 @@ public class Player : MonoBehaviour
     }
 
     private void FixedUpdate() {
-        if (!playerDashQued) { 
-        PlayerMove();
+        if (MovingIntoWall(new Vector2(moveDirection, 0f))) {
+            playerBody.linearVelocityY = -1 * slideSpeed;
+        } else if (IsGrounded()) {
+            playerBody.linearVelocityY = 0f;
         }
+
+        if (!playerDashQued) {
+            PlayerMove();
+        }
+
         PlayerJump();
+
     if (isDashAvailable) {
         playerDash();
         }
@@ -100,15 +111,20 @@ public class Player : MonoBehaviour
     private void PlayerJump() {
         if (playerJumpQued) {
             float jumpModifier = 2;
-            playerBody.linearVelocity = new Vector2(playerBody.linearVelocityX, jumpVelocity * (jumpDownTime * jumpModifier));
-
+            float offWallModifier = 50f;
+            if (MovingIntoWall(new Vector2(moveDirection, 0f))) {
+                playerBody.linearVelocity = new Vector2(moveDirection * -1 * offWallModifier, jumpVelocity * (jumpDownTime * jumpModifier));
+            }
+            else {
+                playerBody.linearVelocity = new Vector2(playerBody.linearVelocityX, jumpVelocity * (jumpDownTime * jumpModifier));
+            }
             playerJumpQued = false;
             jumpDownTime = 0f;
         }
     }
 
     private bool PlayerJumpQued() {
-        if (Input.GetKeyUp(KeyCode.Space) && IsGrounded()) {
+        if (Input.GetKeyUp(KeyCode.Space) && (IsGrounded() || MovingIntoWall(new Vector2(moveDirection, 0f)))) {
             return true;
         } else if(playerJumpQued) {
             return true;
@@ -119,7 +135,7 @@ public class Player : MonoBehaviour
     }   
 
     private float PlayerJumpStrength() {
-        if (Input.GetKey(KeyCode.Space) && IsGrounded()) {
+        if (Input.GetKey(KeyCode.Space) && (IsGrounded() || MovingIntoWall(new Vector2(moveDirection, 0f)))) {
             return Time.deltaTime;
         }
         else {
@@ -128,7 +144,7 @@ public class Player : MonoBehaviour
     }
 
     private bool dashQued() {
-        if (Input.GetKeyDown(KeyCode.W)) {
+        if (Input.GetKeyDown(KeyCode.W) && isDashAvailable) {
             return true;
         }
         else if (playerDashQued) {
@@ -140,9 +156,11 @@ public class Player : MonoBehaviour
 
     private void playerDash() {
         if (playerDashQued) {
+
             playerBody.linearVelocity = new Vector2(lastMoveDirection * dashVelocity, playerBody.linearVelocityY);
             dashVelocity -= dashTime * dashDecrease;
             dashTime += Time.deltaTime;
+
             if (dashVelocity <= moveSpeed) {
                 playerDashQued = false;
                 dashVelocity = dashVelocityMax;
@@ -154,13 +172,24 @@ public class Player : MonoBehaviour
     private bool IsGrounded()
     {
         float extraHeight = 0.05f;
-        RaycastHit2D raycastHit = Physics2D.CapsuleCast(capsuleCollider2d.bounds.center, 
-            capsuleCollider2d.bounds.size, 
-            capsuleCollider2d.direction, 0f, Vector2.down, 
+        RaycastHit2D raycastHit = Physics2D.CapsuleCast(playerCapsuleCollider.bounds.center, 
+            playerCapsuleCollider.bounds.size, 
+            playerCapsuleCollider.direction, 0f, Vector2.down, 
             extraHeight, platformLayerMask);
 
         return raycastHit.collider != null;
     }
-        
-    
+
+    private bool MovingIntoWall(Vector3 dir) {
+        float extraHeight = 0.05f;
+        RaycastHit2D wallHit = Physics2D.CapsuleCast(playerCapsuleCollider.bounds.center,
+            playerCapsuleCollider.bounds.size,
+            playerCapsuleCollider.direction, 0f, dir,
+            extraHeight, platformLayerMask);
+        if (wallHit.collider != null) {
+            return true;
+        }
+            return false;
+    }
 }
+
