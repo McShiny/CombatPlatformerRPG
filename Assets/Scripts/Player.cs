@@ -31,8 +31,12 @@ public class Player : MonoBehaviour
 
     private float slideSpeed = 3f;
 
-    private void Start()
-    {
+    private void Start() {
+        GameInput.Instance.OnDashPreformed += GameInput_OnDashPreformed;
+    }
+
+    private void GameInput_OnDashPreformed(object sender, System.EventArgs e) {
+        playerDashQued = DashQued();
     }
 
     private void Update()
@@ -40,13 +44,9 @@ public class Player : MonoBehaviour
 
         moveDirection = PlayerMoveDirectionNormalized();
         isPlayerWalk = PlayerWalk();
-        playerJumpQued = PlayerJumpQued();
-        playerDashQued = dashQued();
 
-        if (jumpDownTime < jumpDownTimeMax) {
-            jumpDownTime += PlayerJumpStrength();
-        } 
-        
+        jumpDownTime += PlayerJumpStrength();
+
     }
 
     private void FixedUpdate() {
@@ -63,7 +63,7 @@ public class Player : MonoBehaviour
         PlayerJump();
 
     if (isDashAvailable) {
-        playerDash();
+        PlayerDash();
         }
 
     if (!isDashAvailable) {
@@ -79,21 +79,14 @@ public class Player : MonoBehaviour
     private float PlayerMoveDirectionNormalized() {
         Vector2 inputVector = new Vector2(0, 0);
 
-        if (Input.GetKey(KeyCode.D)) {
-            inputVector.x += 1;
-            lastMoveDirection = 1;
-        }
-        
-        if (Input.GetKey(KeyCode.A)) {
-            inputVector.x -= 1;
-            lastMoveDirection = -1;
-        }
+        inputVector.x = GameInput.Instance.GetMovementVectorNormalized();
+        lastMoveDirection = GameInput.Instance.GetMovementVectorNormalized();
 
         return inputVector.x;
     }
 
     private bool PlayerWalk() {
-        if (Input.GetKey(KeyCode.LeftShift)) {
+        if (GameInput.Instance.IsWalking()) {
             return true;
         }
         return false;
@@ -123,28 +116,23 @@ public class Player : MonoBehaviour
         }
     }
 
-    private bool PlayerJumpQued() {
-        if (Input.GetKeyUp(KeyCode.Space) && (IsGrounded() || MovingIntoWall(new Vector2(moveDirection, 0f)))) {
-            return true;
-        } else if(playerJumpQued) {
-            return true;
-        } else {
-            return false;
-        }
-        
-    }   
-
     private float PlayerJumpStrength() {
-        if (Input.GetKey(KeyCode.Space) && (IsGrounded() || MovingIntoWall(new Vector2(moveDirection, 0f)))) {
-            return Time.deltaTime;
-        }
-        else {
+        if (GameInput.Instance.GetJumpDown() &&
+            (IsGrounded() || MovingIntoWall(new Vector2(moveDirection, 0f)))) {
+            if (jumpDownTime < jumpDownTimeMax) {
+                return Time.deltaTime;
+            }
             return 0f;
         }
+        else if (jumpDownTime > 0) {
+            playerJumpQued = true;
+            return 0f;
+        }
+        return 0f;
     }
 
-    private bool dashQued() {
-        if (Input.GetKeyDown(KeyCode.W) && isDashAvailable) {
+    private bool DashQued() {
+        if (isDashAvailable) {
             return true;
         }
         else if (playerDashQued) {
@@ -154,7 +142,7 @@ public class Player : MonoBehaviour
         }
     }
 
-    private void playerDash() {
+    private void PlayerDash() {
         if (playerDashQued) {
 
             playerBody.linearVelocity = new Vector2(lastMoveDirection * dashVelocity, playerBody.linearVelocityY);
@@ -181,7 +169,7 @@ public class Player : MonoBehaviour
     }
 
     private bool MovingIntoWall(Vector3 dir) {
-        float extraHeight = 0.05f;
+        float extraHeight = 0.03f;
         RaycastHit2D wallHit = Physics2D.CapsuleCast(playerCapsuleCollider.bounds.center,
             playerCapsuleCollider.bounds.size,
             playerCapsuleCollider.direction, 0f, dir,
