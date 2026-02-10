@@ -1,10 +1,20 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 public class Player : MonoBehaviour
 {
+
+    public static Player Instance { get; private set; }
+
+    public event EventHandler<OnPlayerDashedEventArgs> OnPlayerDashed;
+    public class OnPlayerDashedEventArgs : EventArgs {
+        public float progressNormalized;
+    }
 
     [SerializeField] private Rigidbody2D playerBody;
     [SerializeField] private CapsuleCollider2D playerCapsuleCollider;
@@ -31,6 +41,9 @@ public class Player : MonoBehaviour
 
     private float slideSpeed = 3f;
 
+    private void Awake() {
+        Instance = this;
+    }
     private void Start() {
         GameInput.Instance.OnDashPreformed += GameInput_OnDashPreformed;
     }
@@ -66,13 +79,22 @@ public class Player : MonoBehaviour
         PlayerDash();
         }
 
-    if (!isDashAvailable) {
+        if (!isDashAvailable) {
             if (dashCooldown <= 0) {
                 isDashAvailable = true;
                 dashCooldown = 3f;
+                OnPlayerDashed?.Invoke(this, new OnPlayerDashedEventArgs {
+                    progressNormalized = 1f
+                });
             }
 
             dashCooldown -= Time.deltaTime;
+
+            if (isDashAvailable == false) { 
+                OnPlayerDashed?.Invoke(this, new OnPlayerDashedEventArgs {
+                    progressNormalized = 1 - dashCooldown / 3
+                });
+            }
         }
     }
 
@@ -154,6 +176,11 @@ public class Player : MonoBehaviour
                 dashVelocity = dashVelocityMax;
                 dashTime = 0f;
                 isDashAvailable = false;
+
+                OnPlayerDashed?.Invoke(this, new OnPlayerDashedEventArgs {
+                    progressNormalized = 0f
+                });
+
             }  
         }
     }
