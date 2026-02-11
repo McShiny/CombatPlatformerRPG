@@ -28,11 +28,15 @@ public class Player : MonoBehaviour
     
     private float jumpVelocity = 40f;
     private float jumpDownTime = 0f;
-    private float jumpDownTimeMax = 0.3f;
+    private float jumpDownTimeMax = 0.35f;
     private bool playerJumpQued = false;
 
-    private float dashVelocity = 25f;
-    private float dashVelocityMax = 25f;
+    private float doubleJumpVelocity = 30f;
+    private bool doubleJumpAvailable = true;
+    private bool doubleJumpQued = false;
+
+    private float dashVelocity = 30f;
+    private float dashVelocityMax = 30f;
     private float dashDecrease = 50f;
     private float dashTime = 0f;
     private float dashCooldown = 3f;
@@ -46,6 +50,11 @@ public class Player : MonoBehaviour
     }
     private void Start() {
         GameInput.Instance.OnDashPreformed += GameInput_OnDashPreformed;
+        GameInput.Instance.OnJumpPreformed += GameInput_OnJumpPreformed;
+    }
+
+    private void GameInput_OnJumpPreformed(object sender, EventArgs e) {
+        PlayerDoubleJump();
     }
 
     private void GameInput_OnDashPreformed(object sender, System.EventArgs e) {
@@ -65,8 +74,10 @@ public class Player : MonoBehaviour
     private void FixedUpdate() {
         if (MovingIntoWall(new Vector2(moveDirection, 0f))) {
             playerBody.linearVelocityY = -1 * slideSpeed;
+            Debug.Log("Is Sliding");
         } else if (IsGrounded()) {
             playerBody.linearVelocityY = 0f;
+            doubleJumpAvailable = true;
         }
 
         if (!playerDashQued) {
@@ -127,6 +138,7 @@ public class Player : MonoBehaviour
         if (playerJumpQued) {
             float jumpModifier = 2;
             float offWallModifier = 50f;
+
             if (MovingIntoWall(new Vector2(moveDirection, 0f))) {
                 playerBody.linearVelocity = new Vector2(moveDirection * -1 * offWallModifier, jumpVelocity * (jumpDownTime * jumpModifier));
             }
@@ -135,6 +147,9 @@ public class Player : MonoBehaviour
             }
             playerJumpQued = false;
             jumpDownTime = 0f;
+        } else if(doubleJumpQued) {
+            playerBody.linearVelocity = new Vector2(playerBody.linearVelocityX, doubleJumpVelocity);
+            doubleJumpQued = false;
         }
     }
 
@@ -145,12 +160,18 @@ public class Player : MonoBehaviour
                 return Time.deltaTime;
             }
             return 0f;
-        }
-        else if (jumpDownTime > 0) {
+        } else if (jumpDownTime > 0) {
             playerJumpQued = true;
             return 0f;
-        }
+        } 
         return 0f;
+    }
+
+    private void PlayerDoubleJump() {
+        if (doubleJumpAvailable && (!IsGrounded() && !MovingIntoWall(new Vector3(moveDirection, 0f, 0f)))) {
+            doubleJumpQued = true;
+            doubleJumpAvailable = false;
+        }
     }
 
     private bool DashQued() {
@@ -196,9 +217,10 @@ public class Player : MonoBehaviour
     }
 
     private bool MovingIntoWall(Vector3 dir) {
-        float extraHeight = 0.03f;
+        float extraHeight = 0.01f;
+        Vector3 heightAdjustment = new Vector3(0f, 0.6f, 0f);
         RaycastHit2D wallHit = Physics2D.CapsuleCast(playerCapsuleCollider.bounds.center,
-            playerCapsuleCollider.bounds.size,
+            playerCapsuleCollider.bounds.size - heightAdjustment,
             playerCapsuleCollider.direction, 0f, dir,
             extraHeight, platformLayerMask);
         if (wallHit.collider != null) {

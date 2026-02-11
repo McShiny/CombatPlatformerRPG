@@ -19,6 +19,7 @@ public class GameInput : MonoBehaviour
         playerInputActions.Player.Enable();
 
         playerInputActions.Player.Dash.performed += Dash_performed;
+        playerInputActions.Player.Jump.performed += Jump_performed;
     }
 
     private void OnDestroy() {
