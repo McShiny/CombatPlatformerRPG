@@ -18,12 +18,12 @@ public class Player : MonoBehaviour
 
     [SerializeField] private Rigidbody2D playerBody;
     [SerializeField] private CapsuleCollider2D playerCapsuleCollider;
-    [SerializeField] private CapsuleCollider2D floorCapsuleCollider;
     [SerializeField] private LayerMask platformLayerMask;
 
     private float moveSpeed = 7f;
     private float moveDirection = 0f;
     private float lastMoveDirection = 0f;
+    private float playerMovingDirection = 0f;
     private bool isPlayerWalk = false;
     
     private float jumpVelocity = 40f;
@@ -113,9 +113,10 @@ public class Player : MonoBehaviour
         Vector2 inputVector = new Vector2(0, 0);
 
         inputVector.x = GameInput.Instance.GetMovementVectorNormalized();
+        playerMovingDirection = inputVector.x;
         lastMoveDirection = GameInput.Instance.GetMovementVectorNormalized();
 
-        return inputVector.x;
+            return inputVector.x;
     }
 
     private bool PlayerWalk() {
@@ -228,5 +229,10 @@ public class Player : MonoBehaviour
         }
             return false;
     }
+
+    public float GetPlayerMovingDirection() {
+        return playerMovingDirection;
+    }
+
 }
 
