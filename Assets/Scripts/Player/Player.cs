@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using UnityEngine;
+using static UnityEngine.UI.Image;
 using Debug = UnityEngine.Debug;
 
 public class Player : MonoBehaviour
@@ -20,21 +21,35 @@ public class Player : MonoBehaviour
     [SerializeField] private CapsuleCollider2D playerCapsuleCollider;
     [SerializeField] private LayerMask platformLayerMask;
 
+    [SerializeField] private Transform playerTopPosition;
+    [SerializeField] private Transform playerMidPosition;
+
+    // Movement Variables
     private float moveSpeed = 7f;
     private float moveDirection = 0f;
     private float lastMoveDirection = 0f;
     private float playerMovingDirection = 0f;
     private bool isPlayerWalk = false;
-    
-    private float jumpVelocity = 40f;
-    private float jumpDownTime = 0f;
-    private float jumpDownTimeMax = 0.35f;
-    private bool playerJumpQued = false;
 
+    public float terminalVelocity = 50f;
+
+    private float groundedGrace = 0.08f;
+    private float groundedTimer;
+
+    // Jump Variables
+    private float jumpVelocity = 40f;
+    private float jumpStrength;
+    private float jumpStrengthMin = 0.50f;
+    private float jumpStrengthMax = 1.25f;
+    private bool playerJumpQued = false;
+    private bool playerFalling = false;
+
+    // DoubleJump Variables
     private float doubleJumpVelocity = 30f;
     private bool doubleJumpAvailable = true;
     private bool doubleJumpQued = false;
 
+    // Dash Variables
     private float dashVelocity = 30f;
     private float dashVelocityMax = 30f;
     private float dashDecrease = 50f;
@@ -64,18 +79,21 @@ public class Player : MonoBehaviour
     private void Update()
     {
 
-        moveDirection = PlayerMoveDirectionNormalized();
-        isPlayerWalk = PlayerWalk();
-
-        jumpDownTime += PlayerJumpStrength();
+        PlayerMoveDirectionNormalized();
+        PlayerWalk();
+        QueJump();
 
     }
 
     private void FixedUpdate() {
         if (MovingIntoWall(new Vector2(moveDirection, 0f))) {
             playerBody.linearVelocityY = -1 * slideSpeed;
-            Debug.Log("Is Sliding");
-        } else if (IsGrounded()) {
+        } if (IsGrounded()) groundedTimer = groundedGrace;
+            else groundedTimer -= Time.fixedDeltaTime;
+
+        bool grounded = groundedTimer > 0f;
+
+        if (grounded && Mathf.Abs(playerBody.linearVelocityY) < 0.5f) {
             playerBody.linearVelocityY = 0f;
             doubleJumpAvailable = true;
         }
@@ -107,23 +125,29 @@ public class Player : MonoBehaviour
                 });
             }
         }
+
+        if (playerBody.linearVelocityY > terminalVelocity) {
+            playerBody.linearVelocityY = terminalVelocity;
+        }
     }
 
-    private float PlayerMoveDirectionNormalized() {
+    private void PlayerMoveDirectionNormalized() {
         Vector2 inputVector = new Vector2(0, 0);
 
         inputVector.x = GameInput.Instance.GetMovementVectorNormalized();
         playerMovingDirection = inputVector.x;
         lastMoveDirection = GameInput.Instance.GetMovementVectorNormalized();
 
-            return inputVector.x;
+        moveDirection = inputVector.x;
     }
 
-    private bool PlayerWalk() {
+    private void PlayerWalk() {
         if (GameInput.Instance.IsWalking()) {
-            return true;
+            isPlayerWalk = true;
         }
-        return false;
+        else {
+            isPlayerWalk = false;
+        }
     }
 
     private void PlayerMove() {
@@ -137,35 +161,43 @@ public class Player : MonoBehaviour
 
     private void PlayerJump() {
         if (playerJumpQued) {
-            float jumpModifier = 2;
             float offWallModifier = 50f;
+            float jumpModifier = 0.3f;
 
-            if (MovingIntoWall(new Vector2(moveDirection, 0f))) {
-                playerBody.linearVelocity = new Vector2(moveDirection * -1 * offWallModifier, jumpVelocity * (jumpDownTime * jumpModifier));
+            if (GameInput.Instance.GetJumpDown() && MovingIntoWall(new Vector2(moveDirection, 0f))) {
+                playerBody.linearVelocity = new Vector2(moveDirection * -1 * offWallModifier,
+                    jumpVelocity * jumpStrength * jumpModifier);
+                jumpStrength -= Time.deltaTime * 2;
+                if (jumpStrength <= jumpStrengthMin) {
+                    playerJumpQued = false;
+                    jumpStrength = 0f;
+                    playerFalling = true;
+                }
+            }
+            else if (GameInput.Instance.GetJumpDown()) {
+                playerBody.linearVelocity = new Vector2(playerBody.linearVelocityX,
+                    jumpVelocity * jumpStrength * jumpModifier);
+                jumpStrength -= Time.deltaTime * 2;
+                if (jumpStrength <= jumpStrengthMin) {
+                    playerJumpQued = false;
+                    jumpStrength = 0f;
+                    playerFalling = true;
+                }
             }
             else {
-                playerBody.linearVelocity = new Vector2(playerBody.linearVelocityX, jumpVelocity * (jumpDownTime * jumpModifier));
+                playerJumpQued = false;
             }
-            playerJumpQued = false;
-            jumpDownTime = 0f;
         } else if(doubleJumpQued) {
             playerBody.linearVelocity = new Vector2(playerBody.linearVelocityX, doubleJumpVelocity);
             doubleJumpQued = false;
         }
     }
 
-    private float PlayerJumpStrength() {
-        if (GameInput.Instance.GetJumpDown() &&
-            (IsGrounded() || MovingIntoWall(new Vector2(moveDirection, 0f)))) {
-            if (jumpDownTime < jumpDownTimeMax) {
-                return Time.deltaTime;
-            }
-            return 0f;
-        } else if (jumpDownTime > 0) {
+    private void QueJump() {
+        if (GameInput.Instance.GetJumpDown() && (IsGrounded() || MovingIntoWall(new Vector3(moveDirection, 0f, 0f)))) {
+            jumpStrength = jumpStrengthMax;
             playerJumpQued = true;
-            return 0f;
-        } 
-        return 0f;
+        }
     }
 
     private void PlayerDoubleJump() {
@@ -208,23 +240,36 @@ public class Player : MonoBehaviour
     }
     private bool IsGrounded()
     {
-        float extraHeight = 0.05f;
+        float extraHeight = 0.1f;
         RaycastHit2D raycastHit = Physics2D.CapsuleCast(playerCapsuleCollider.bounds.center, 
             playerCapsuleCollider.bounds.size, 
             playerCapsuleCollider.direction, 0f, Vector2.down, 
             extraHeight, platformLayerMask);
 
-        return raycastHit.collider != null;
+        if (raycastHit.collider != null) {
+            playerFalling = false;
+            return true;
+        }
+        return false;
     }
 
     private bool MovingIntoWall(Vector3 dir) {
-        float extraHeight = 0.01f;
-        Vector3 heightAdjustment = new Vector3(0f, 0.6f, 0f);
-        RaycastHit2D wallHit = Physics2D.CapsuleCast(playerCapsuleCollider.bounds.center,
-            playerCapsuleCollider.bounds.size - heightAdjustment,
-            playerCapsuleCollider.direction, 0f, dir,
-            extraHeight, platformLayerMask);
+        float distance = 0.5f;
+
+        if (dir.x < 0) {
+            playerMidPosition.position = transform.position + new Vector3(-0.22f, 0.9f, 0f);
+        } else {
+            playerMidPosition.position = transform.position + new Vector3(0.3f, 0.9f, 0f);
+        }
+
+        Debug.DrawRay(playerMidPosition.position, dir * distance, Color.green);
+
+        RaycastHit2D wallHit = Physics2D.Raycast(playerMidPosition.position, 
+            dir, 
+            distance, 
+            platformLayerMask); 
         if (wallHit.collider != null) {
+            playerFalling = false;
             return true;
         }
             return false;
@@ -232,6 +277,14 @@ public class Player : MonoBehaviour
 
     public float GetPlayerMovingDirection() {
         return playerMovingDirection;
+    }
+
+    public bool GetPlayerGrounded() {
+        return IsGrounded();
+    }
+
+    public bool GetPlayerOnWall() {
+        return MovingIntoWall(new Vector3(moveDirection, 0f, 0f));
     }
 
 }

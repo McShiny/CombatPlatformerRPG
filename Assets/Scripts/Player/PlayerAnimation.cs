@@ -5,6 +5,7 @@ public class PlayerAnimation : MonoBehaviour
 
     private const string PLAYER_RUN_ANIMATION = "IsRunning";
     private const string PLAYER_WALK_ANIMATION = "IsWalking";
+    private const string PLAYER_JUMP_ANIMATION = "IsJumping";
 
     [SerializeField] private Player player;
     [SerializeField] private SpriteRenderer spriteRenderer;
@@ -13,7 +14,7 @@ public class PlayerAnimation : MonoBehaviour
 
     private float moveEpsilon = 0.01f;
     
-    private float idleGraceSeconds = 0.1f;
+    private float idleGraceSeconds = 0.06f;
     private float lastMoveTime;
     private float lastDir;
 
@@ -23,6 +24,7 @@ public class PlayerAnimation : MonoBehaviour
 
     private void Update() {
         UpdateMovement();
+        UpdateJumping();
     }
 
     private void UpdateMovement() { 
@@ -42,6 +44,11 @@ public class PlayerAnimation : MonoBehaviour
                 isWalking && isMoving);
         animator.SetBool(PLAYER_RUN_ANIMATION, 
             !isWalking && isMoving);
+    }
+
+    private void UpdateJumping() {
+        animator.SetBool(PLAYER_JUMP_ANIMATION,
+                !player.GetPlayerGrounded() && !player.GetPlayerOnWall());
     }
 
 }
