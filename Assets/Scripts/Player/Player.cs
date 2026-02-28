@@ -42,7 +42,6 @@ public class Player : MonoBehaviour
     private float jumpStrengthMin = 0.50f;
     private float jumpStrengthMax = 1.25f;
     private bool playerJumpQued = false;
-    private bool playerFalling = false;
 
     // DoubleJump Variables
     private float doubleJumpVelocity = 30f;
@@ -161,17 +160,16 @@ public class Player : MonoBehaviour
 
     private void PlayerJump() {
         if (playerJumpQued) {
-            float offWallModifier = 50f;
+            float offWallModifier = 360f;
             float jumpModifier = 0.3f;
 
             if (GameInput.Instance.GetJumpDown() && MovingIntoWall(new Vector2(moveDirection, 0f))) {
-                playerBody.linearVelocity = new Vector2(moveDirection * -1 * offWallModifier,
+                playerBody.linearVelocity = new Vector2(moveDirection * -1 * offWallModifier * jumpStrength * jumpModifier,
                     jumpVelocity * jumpStrength * jumpModifier);
                 jumpStrength -= Time.deltaTime * 2;
                 if (jumpStrength <= jumpStrengthMin) {
                     playerJumpQued = false;
                     jumpStrength = 0f;
-                    playerFalling = true;
                 }
             }
             else if (GameInput.Instance.GetJumpDown()) {
@@ -181,7 +179,6 @@ public class Player : MonoBehaviour
                 if (jumpStrength <= jumpStrengthMin) {
                     playerJumpQued = false;
                     jumpStrength = 0f;
-                    playerFalling = true;
                 }
             }
             else {
@@ -247,14 +244,13 @@ public class Player : MonoBehaviour
             extraHeight, platformLayerMask);
 
         if (raycastHit.collider != null) {
-            playerFalling = false;
             return true;
         }
         return false;
     }
 
     private bool MovingIntoWall(Vector3 dir) {
-        float distance = 0.5f;
+        float distance = 0.3f;
 
         if (dir.x < 0) {
             playerMidPosition.position = transform.position + new Vector3(-0.22f, 0.9f, 0f);
@@ -269,10 +265,9 @@ public class Player : MonoBehaviour
             distance, 
             platformLayerMask); 
         if (wallHit.collider != null) {
-            playerFalling = false;
             return true;
         }
-            return false;
+        return false;
     }
 
     public float GetPlayerMovingDirection() {
